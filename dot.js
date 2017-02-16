@@ -19,62 +19,95 @@ const canvas = (function() {
   return { context, dim }
 })()
 
-class Dot {
-  constructor(posX, posY, speedX, speedY) {
-    this.posX   = posX
-    this.posY   = posY
-    this.speedX = speedX
-    this.speedY = speedY
-    this.size   = 4
-  }
-}
 
-function createDots(n, width, height) {
-  const dots = []
+const helper = (function() {
 
   function randSign() {
     return Math.round(Math.random()) ? 1 : -1
   }
 
-  for(let i = 0; i < n; i++) {
-    let randX  = Math.floor(Math.random() * width)
-    let randY  = Math.floor(Math.random() * height)
-    let speedX = 1 * randSign()
-    let speedY = 1 * randSign()
+  function distance(objA, objB) {
+    const distX = Math.pow(objB.posX - objA.posX, 2)
+    const distY = Math.pow(objB.posY - objA.posY, 2)
 
-    dots.push(new Dot(randX, randY, speedX, speedY))
+    return Math.sqrt(distX + distY)
   }
 
-  return dots
-}
+  function createDots(n, width, height) {
+    const dots  = []
+    const speed = 0.4
+    const size  = 0
 
+    for(let i = 0; i < n; i++) {
+      let randX  = Math.floor(Math.random() * width)
+      let randY  = Math.floor(Math.random() * height)
+
+      dots.push(new Dot(randX, randY, speed, size))
+    }
+
+    return dots
+  }
+
+  return { randSign, distance, createDots }
+})()
+
+
+
+
+class Dot {
+  constructor(posX, posY, speed, size) {
+    this.posX   = posX
+    this.posY   = posY
+    this.speedX = speed * helper.randSign()
+    this.speedY = speed * helper.randSign()
+    this.size   = size
+  }
+
+  link(context, other) {
+    context.strokeStyle = "#fff"
+    context.beginPath()
+    context.moveTo(this.posX, this.posY)
+    context.lineTo(other.posX, other.posY)
+    context.stroke()
+  }
+}
 
 
 ;(function() {
   const ctx        = canvas.context
   const item_size  = 50
+  const canvas_dim = canvas.dim()
 
-  let width  = canvas.dim().width
-  let height = canvas.dim().height
-  let dots   = createDots(item_size, width, height)
+  let width  = canvas_dim.width
+  let height = canvas_dim.height
+  let dots   = helper.createDots(item_size, width, height)
 
   window.onresize = redraw
+
 
   function redraw() {
     width  = ctx.canvas.width  = window.innerWidth
     height = ctx.canvas.height = window.innerHeight
-    dots   = createDots(item_size, width, height)
+    dots   = helper.createDots(item_size, width, height)
   }
 
 
   function draw() {
     ctx.clearRect(0, 0, width, height)
 
-    dots.forEach( dot => {
-      console.log(dot.posX, dot.posY)
+    dots.forEach((dot, i) => {
+      const size = dot.size
 
       dot.posX = dot.posX + dot.speedX
       dot.posY = dot.posY + dot.speedY
+
+      if(dot.posX < 0) {
+        dot.speedX *= -1
+      }
+
+      if(dot.posY < 0) {
+        dot.speedY *= -1
+      }
 
       if(dot.posX > width) {
         dot.speedX = -dot.speedX
@@ -84,17 +117,19 @@ function createDots(n, width, height) {
         dot.speedY = -dot.speedY
       }
 
-      if(dot.posX < 0) {
-        dot.speedX = Math.abs(dot.speedX)
-      }
+      dots.forEach((other, j) => {
+        const dist       = helper.distance(dot, other)
+        const link_range = 200
 
-      if(dot.posY < 0) {
-        dot.speedY = Math.abs(dot.speedY)
-      }
+        if(i != j && dist <= link_range) {
+          dot.link(ctx, other)
+        }
+      })
+
 
       ctx.fillStyle = "#2A5";
       ctx.beginPath();
-      ctx.arc(dot.posX, dot.posY, dot.size, 0, Math.PI * 2);
+      ctx.arc(dot.posX, dot.posY, size, 0, Math.PI * 2);
       ctx.fill();
     })
 
